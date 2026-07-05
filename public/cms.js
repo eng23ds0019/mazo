@@ -433,6 +433,9 @@
     // Remove repeatable controls
     state.activeSection.querySelectorAll('.cms-card-tools').forEach(tool => tool.remove());
 
+    // Remove background image edit badges
+    state.activeSection.querySelectorAll('.cms-bg-image-badge').forEach(badge => badge.remove());
+
     state.activeSection.classList.remove('cms-active-edit');
     state.activeSection = null;
     document.body.classList.remove('cms-section-focus-mode');
@@ -534,6 +537,45 @@
         if (card.querySelector('.cms-card-tools')) return;
         injectCardControls(card, section);
       });
+    });
+
+    // 5. Hero & Background Images Edit Badge
+    section.querySelectorAll('.hero-bg img, .phero img, .svc-hero-img, .hero-grid img, [class*="-bg"] img').forEach(bgImg => {
+      if (isCmsElement(bgImg)) return;
+
+      const badgeId = 'cms-bg-edit-' + getElementKey(bgImg, section).replace(/:/g, '-');
+      if (document.getElementById(badgeId)) return;
+
+      const editBadge = document.createElement('div');
+      editBadge.id = badgeId;
+      editBadge.className = 'cms-bg-image-badge';
+      editBadge.innerHTML = '📷 Change Background Image';
+      editBadge.style.cssText = [
+        'position: absolute',
+        'top: 15px',
+        'right: 15px',
+        'background: rgba(0, 0, 0, 0.8)',
+        'color: #fff',
+        'padding: 8px 14px',
+        'border-radius: 20px',
+        'font-size: 11.5px',
+        'font-family: sans-serif',
+        'cursor: pointer',
+        'z-index: 1000',
+        'border: 1px solid rgba(255, 255, 255, 0.25)',
+        'box-shadow: 0 4px 12px rgba(0,0,0,0.4)',
+        'transition: background 0.2s, transform 0.1s'
+      ].join(';');
+
+      editBadge.addEventListener('mouseenter', () => { editBadge.style.background = '#14c834'; });
+      editBadge.addEventListener('mouseleave', () => { editBadge.style.background = 'rgba(0, 0, 0, 0.8)'; });
+      editBadge.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showImageUploadModal(bgImg, section);
+      });
+
+      section.appendChild(editBadge);
     });
   }
 
