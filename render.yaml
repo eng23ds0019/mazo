@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: mazaohub-cms
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /api/auth/check
+    envVars:
+      - key: NODE_ENV
+        value: production
