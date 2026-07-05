@@ -146,9 +146,14 @@
       if (item.type === 'text') {
         if (el.hasAttribute('data-count')) {
           const cleanNum = item.value.replace(/[^0-9]/g, '');
-          el.setAttribute('data-count', cleanNum);
+          // Only overwrite data-count when we have a meaningful non-zero stored value
+          if (cleanNum && cleanNum !== '0') {
+            el.setAttribute('data-count', cleanNum);
+          }
+          // In edit mode always display the data-count attribute value (the real number)
+          const displayCount = el.getAttribute('data-count');
           if (state.editMode && !state.previewMode) {
-            el.innerHTML = item.value;
+            el.innerHTML = displayCount;
           } else {
             el.innerHTML = '0';
             if (typeof window.animateCount === 'function') {
