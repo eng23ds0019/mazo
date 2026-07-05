@@ -310,6 +310,26 @@
 
     ftBottomSpan.appendChild(sep);
     ftBottomSpan.appendChild(loginLink);
+
+    // Inject "AI Agent Console" link next to it
+    const sepAgent = document.createTextNode('  ·  ');
+    const agentLink = document.createElement('a');
+    agentLink.id = 'cms-agent-console-btn';
+    agentLink.href = '/agent.html';
+    agentLink.target = '_blank';
+    agentLink.textContent = 'AI Agent Console';
+    agentLink.style.cssText = [
+      'color: var(--mist-dim, #6b7b6b)',
+      'font-size: inherit',
+      'text-decoration: none',
+      'transition: color 0.2s',
+      'cursor: pointer'
+    ].join(';');
+    agentLink.addEventListener('mouseenter', () => { agentLink.style.color = '#14c834'; });
+    agentLink.addEventListener('mouseleave', () => { agentLink.style.color = 'var(--mist-dim, #6b7b6b)'; });
+
+    ftBottomSpan.appendChild(sepAgent);
+    ftBottomSpan.appendChild(agentLink);
   }
 
   // Global Escape key handler — closes modals, popovers and deactivates edit mode
@@ -869,7 +889,8 @@
       <button type="button" class="cms-toolbar-btn" id="cms-undo-btn" disabled>Undo</button>
       <button type="button" class="cms-toolbar-btn" id="cms-redo-btn" disabled>Redo</button>
       <button type="button" class="cms-toolbar-btn cms-danger" id="cms-cancel-btn">Cancel Changes</button>
-      <button type="button" class="cms-toolbar-btn" id="cms-logout-btn" style="margin-left: 20px;">Logout</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-agent-btn" style="background: #14c834; color: #000; font-weight: bold; margin-left: 20px;">🤖 AI Agent</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-logout-btn" style="margin-left: 10px;">Logout</button>
     `;
 
     document.body.appendChild(toolbar);
@@ -882,6 +903,9 @@
     toolbar.querySelector('#cms-redo-btn').addEventListener('click', redoHistory);
     toolbar.querySelector('#cms-cancel-btn').addEventListener('click', cancelChanges);
     toolbar.querySelector('#cms-logout-btn').addEventListener('click', logoutAdmin);
+    toolbar.querySelector('#cms-agent-btn').addEventListener('click', () => {
+      window.open('/agent.html', '_blank');
+    });
   }
 
   // Mark status text
