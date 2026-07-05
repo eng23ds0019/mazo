@@ -147,7 +147,13 @@
         }
       } else if (item.type === 'button') {
         const btnData = JSON.parse(item.value);
-        el.innerHTML = btnData.text;
+        // Only overwrite innerHTML for non-structural links.
+        // Structural links contain layout children (img, div, svg, headings, paragraphs)
+        // e.g. the brand logo anchor or team member card anchors.
+        const hasStructuralChildren = el.querySelector('img, div, svg, h1, h2, h3, h4, h5, h6, p');
+        if (!hasStructuralChildren && btnData.text !== null && btnData.text !== undefined) {
+          el.innerHTML = btnData.text;
+        }
         if (el.tagName === 'A') {
           el.setAttribute('href', btnData.url);
           if (btnData.target) {
@@ -266,17 +272,41 @@
     }
   }
 
-  // Inject "Admin Login" button statically
+  // Inject "Admin Portal" link in the footer copyright row (professional placement)
   function injectLoginButton() {
-    const navCta = document.querySelector('.nav-cta');
-    if (!navCta) return;
+    const ftBottomSpan = document.querySelector('.ft-bottom span');
+    if (!ftBottomSpan) return;
 
-    const loginBtn = document.createElement('button');
-    loginBtn.id = 'cms-admin-login-btn';
-    loginBtn.innerHTML = '🔑 Admin Login';
-    loginBtn.addEventListener('click', showLoginModal);
-    navCta.appendChild(loginBtn);
+    const sep = document.createTextNode('  ·  ');
+    const loginLink = document.createElement('a');
+    loginLink.id = 'cms-admin-login-btn';
+    loginLink.href = '#';
+    loginLink.textContent = 'Admin Portal';
+    loginLink.style.cssText = [
+      'color: var(--mist-dim, #6b7b6b)',
+      'font-size: inherit',
+      'text-decoration: none',
+      'transition: color 0.2s',
+      'cursor: pointer'
+    ].join(';');
+    loginLink.addEventListener('mouseenter', () => { loginLink.style.color = '#14c834'; });
+    loginLink.addEventListener('mouseleave', () => { loginLink.style.color = 'var(--mist-dim, #6b7b6b)'; });
+    loginLink.addEventListener('click', (e) => { e.preventDefault(); showLoginModal(); });
+
+    ftBottomSpan.appendChild(sep);
+    ftBottomSpan.appendChild(loginLink);
   }
+
+  // Global Escape key handler — closes modals, popovers and deactivates edit mode
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.cms-modal-overlay').forEach(m => m.remove());
+      document.querySelectorAll('.cms-popover').forEach(p => p.remove());
+      if (state.editMode && state.activeSection) {
+        deactivateSectionEditing();
+      }
+    }
+  });
 
   // Render Admin credentials modal
   function showLoginModal() {
@@ -740,8 +770,11 @@
       }
 
       const key = getElementKey(btnEl, section);
+      // Preserve null text for structural link containers
+      const hasStructuralChildren = btnEl.querySelector('img, div, svg, h1, h2, h3, h4, h5, h6, p');
+      const serializedText = hasStructuralChildren ? null : buttonText;
       state.draftChanges[key] = {
-        value: JSON.stringify({ text: buttonText, url, target, visible }),
+        value: JSON.stringify({ text: serializedText, url, target, visible }),
         type: 'button'
       };
 
@@ -893,7 +926,10 @@
         const isHidden = el.classList.contains('cms-element-hidden');
         const url = el.getAttribute('href') || '';
         const target = el.getAttribute('target') || '';
-        const text = el.innerText;
+        // For structural anchors (containing img, div, svg, headings, paragraphs),
+        // store null for text so we never overwrite their layout on reload.
+        const hasStructuralChildren = el.querySelector('img, div, svg, h1, h2, h3, h4, h5, h6, p');
+        const text = hasStructuralChildren ? null : el.innerText;
         const key = getElementKey(el, section);
         layout[key] = {
           value: JSON.stringify({ text, url, target, visible: !isHidden }),
