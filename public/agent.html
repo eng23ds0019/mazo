@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MazaoHub AI Agent Console</title>
+  <style>
+    :root {
+      --bg-dark: #071609;
+      --bg-card: #0d2711;
+      --border-color: rgba(20, 200, 52, 0.15);
+      --primary-color: #14c834;
+      --primary-hover: #11ab2c;
+      --text-main: #e2ede4;
+      --text-muted: #8fa894;
+      --chat-user: #154c1d;
+      --chat-agent: #0f3014;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Sidebar Chat Panel */
+    .sidebar {
+      width: 420px;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background: rgba(13, 39, 17, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      background: rgba(20, 200, 52, 0.2);
+      border: 1px solid var(--primary-color);
+      color: var(--primary-color);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: var(--primary-color);
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(20, 200, 52, 0.7);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(20, 200, 52, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(20, 200, 52, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(20, 200, 52, 0);
+      }
+    }
+
+    /* Auth Banner */
+    .auth-banner {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px dashed var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .auth-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .auth-status .status-text {
+      font-weight: bold;
+    }
+
+    .auth-status.authenticated .status-text {
+      color: var(--primary-color);
+    }
+
+    .auth-status.unauthenticated .status-text {
+      color: #ff4a4a;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .login-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 6px 10px;
+      color: #fff;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .login-btn {
+      background: var(--primary-color);
+      color: #000;
+      border: none;
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .login-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Chat Messages Area */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .message.agent {
+      align-self: flex-start;
+      background-color: var(--chat-agent);
+      border: 1px solid rgba(20, 200, 52, 0.1);
+      border-top-left-radius: 2px;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background-color: var(--chat-user);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-top-right-radius: 2px;
+    }
+
+    .chat-suggestions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 20px 10px 20px;
+      border-top: 1px solid rgba(20, 200, 52, 0.08);
+      padding-top: 12px;
+    }
+
+    .suggestions-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .suggestions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .suggestion-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .suggestion-chip:hover {
+      background: rgba(20, 200, 52, 0.12);
+      border-color: var(--primary-color);
+    }
+
+    /* Input Controls */
+    .input-area {
+      padding: 15px 20px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .chat-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 13.5px;
+      outline: none;
+      resize: none;
+      height: 44px;
+      line-height: 20px;
+    }
+
+    .send-btn {
+      background: var(--primary-color);
+      color: #000;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .send-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .send-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* Main Preview Container */
+    .preview-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #030a04;
+    }
+
+    .preview-header {
+      height: 60px;
+      background: rgba(13, 39, 17, 0.6);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+
+    .preview-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-badge {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+      color: var(--text-muted);
+    }
+
+    .preview-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(20, 200, 52, 0.15);
+    }
+
+    /* Device Toggles */
+    .device-toggles {
+      display: flex;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .device-btn {
+      background: rgba(0, 0, 0, 0.3);
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+
+    .device-btn.active {
+      background: var(--primary-color);
+      color: #000;
+    }
+
+    .iframe-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-iframe {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 100%;
+      height: 100%;
+    }
+
+    .preview-iframe.tablet {
+      width: 768px;
+      height: 90%;
+    }
+
+    .preview-iframe.mobile {
+      width: 375px;
+      height: 80%;
+    }
+
+    /* Scrollbars styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(20, 200, 52, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-color);
+    }
+
+    /* Highlights for edited items */
+    .flash-highlight {
+      outline: 3px solid #14c834 !important;
+      outline-offset: 4px !important;
+      transition: outline 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Chat -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-row">
+        <div class="brand-title">
+          <div class="pulse"></div>
+          MazaoHub Agent
+        </div>
+        <span class="brand-badge">Agentic AI</span>
+      </div>
+      
+      <!-- Authentication -->
+      <div class="auth-banner" id="auth-section">
+        <div class="auth-status unauthenticated">
+          <span>Console Status:</span>
+          <span class="status-text">Guest Mode (Read-Only)</span>
+        </div>
+        <form class="login-form" id="login-form">
+          <input type="text" placeholder="Username" id="login-user" class="login-input" required value="admin">
+          <input type="password" placeholder="Password" id="login-pass" class="login-input" required value="admin">
+          <button type="submit" class="login-btn">Authenticate Agent</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="chat-area" id="chat-messages">
+      <div class="message agent">
+        Hello! I am the MazaoHub Multi-Tasking AI Agent. I can analyze the website structure, lookup contents, and help you perform instant edits.
+        <br><br>
+        <strong>Try saying something like:</strong>
+        <br>• "Change Farmers count to 180,000"
+        <br>• "Make active countries count 5"
+        <br>• "List all editable keys"
+        <br>• "Find what we offer"
+      </div>
+    </div>
+
+    <!-- Suggestion Chips -->
+    <div class="chat-suggestions">
+      <div class="suggestions-label">Quick Agent Tasks</div>
+      <div class="suggestions-grid">
+        <div class="suggestion-chip" onclick="sendSuggestion('Change Farmers count to 180,000')">Set Farmers: 180k</div>
+        <div class="suggestion-chip" onclick="sendSuggestion('Make active countries count 5')">Set Countries: 5</div>
+        <div class="suggestion-chip" onclick="sendSuggestion('Change soil tests count to 750,000')">Soil Tests: 750k</div>
+        <div class="suggestion-chip" onclick="sendSuggestion('List editable keys')">List Edit Keys</div>
+        <div class="suggestion-chip" onclick="sendSuggestion('Explain what this website is about')">Explain Website</div>
+      </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="input-area">
+      <textarea id="chat-input" class="chat-input" placeholder="Type an instruction..." rows="1"></textarea>
+      <button id="send-btn" class="send-btn">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Live Website Preview -->
+  <div class="preview-container">
+    <div class="preview-header">
+      <div class="preview-title-row">
+        <span style="font-weight: bold; font-size: 14px;">Website Live Console</span>
+        <span class="preview-badge" id="iframe-url">/</span>
+      </div>
+      <div class="preview-actions">
+        <div class="device-toggles">
+          <button class="device-btn active" id="btn-desktop">Desktop</button>
+          <button class="device-btn" id="btn-tablet">Tablet</button>
+          <button class="device-btn" id="btn-mobile">Mobile</button>
+        </div>
+        <button class="action-btn" id="btn-reload">Refresh Frame</button>
+      </div>
+    </div>
+    <div class="iframe-wrapper">
+      <iframe src="/" class="preview-iframe" id="preview-frame"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const chatMessages = document.getElementById('chat-messages');
+    const previewFrame = document.getElementById('preview-frame');
+    const iframeUrlBadge = document.getElementById('iframe-url');
+    const btnReload = document.getElementById('btn-reload');
+    const loginForm = document.getElementById('login-form');
+
+    let state = {
+      authenticated: false,
+      contentMap: {},
+      editHistory: []
+    };
+
+    // Auto resize text area
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = (chatInput.scrollHeight) + 'px';
+    });
+
+    // Device toggles
+    document.getElementById('btn-desktop').addEventListener('click', (e) => toggleDevice(e.target, 'desktop'));
+    document.getElementById('btn-tablet').addEventListener('click', (e) => toggleDevice(e.target, 'tablet'));
+    document.getElementById('btn-mobile').addEventListener('click', (e) => toggleDevice(e.target, 'mobile'));
+
+    function toggleDevice(btn, mode) {
+      document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      previewFrame.className = 'preview-iframe ' + (mode === 'desktop' ? '' : mode);
+    }
+
+    btnReload.addEventListener('click', () => {
+      previewFrame.contentWindow.location.reload();
+      appendLog("System", "Refreshed live website preview frame.");
+    });
+
+    // Check login status on page load
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth/check');
+        const data = await res.json();
+        if (data.authenticated) {
+          setAuthenticatedState(true);
+        } else {
+          setAuthenticatedState(false);
+        }
+      } catch (err) {
+        console.error("Auth check failed", err);
+      }
+    }
+
+    function setAuthenticatedState(authed) {
+      state.authenticated = authed;
+      const section = document.getElementById('auth-section');
+      if (authed) {
+        section.innerHTML = `
+          <div class="auth-status authenticated">
+            <span>Console Status:</span>
+            <span class="status-text">⚡ Authenticated Agent</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-muted);">Agent has full authorization to write edits, publish drafts, and modify visual components.</p>
+        `;
+      } else {
+        // Restore login form
+        section.innerHTML = `
+          <div class="auth-status unauthenticated">
+            <span>Console Status:</span>
+            <span class="status-text">Guest Mode (Read-Only)</span>
+          </div>
+          <form class="login-form" id="login-form">
+            <input type="text" placeholder="Username" id="login-user" class="login-input" required value="admin">
+            <input type="password" placeholder="Password" id="login-pass" class="login-input" required value="admin">
+            <button type="submit" class="login-btn">Authenticate Agent</button>
+          </form>
+        `;
+        // Re-bind submit event
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const user = document.getElementById('login-user').value;
+      const pass = document.getElementById('login-pass').value;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setAuthenticatedState(true);
+          appendLog("System", "Agent successfully authenticated with system backend credentials.");
+          previewFrame.contentWindow.location.reload();
+        } else {
+          alert('Authentication failed: ' + (data.error || 'invalid credentials'));
+        }
+      } catch (err) {
+        alert('Authentication failed: ' + err.message);
+      }
+    }
+
+    // Helper for logs
+    function appendLog(sender, text, isUser = false) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message ' + (isUser ? 'user' : 'agent');
+      msgDiv.innerHTML = text;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function sendSuggestion(text) {
+      chatInput.value = text;
+      sendMessage();
+    }
+
+    // Handle sending message
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      appendLog("You", text, true);
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+
+      // Agent thinking state
+      const thinkingDiv = document.createElement('div');
+      thinkingDiv.className = 'message agent';
+      thinkingDiv.innerHTML = '⚡ Agent is processing instructions...';
+      chatMessages.appendChild(thinkingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      // Handle the command using client-side Multi-Task Agent Router
+      setTimeout(async () => {
+        const result = await processAgentCommand(text);
+        thinkingDiv.remove();
+        appendLog("Agent", result);
+      }, 600);
+    }
+
+    // Multi-Task Agent Core Router
+    async function processAgentCommand(command) {
+      const lower = command.toLowerCase();
+
+      // Fetch live content map first
+      try {
+        const contentRes = await fetch('/api/content');
+        state.contentMap = await contentRes.json();
+      } catch (e) {
+        return "⚠️ Error: Unable to fetch the live website content map. Please refresh the page.";
+      }
+
+      // Check for list editable keys
+      if (lower.includes('list') && (lower.includes('key') || lower.includes('editable'))) {
+        let keysHtml = "<strong>Editable Content Keys & Values:</strong><br><br>";
+        let count = 0;
+        for (const [key, item] of Object.entries(state.contentMap)) {
+          if (key.endsWith(':count')) continue;
+          let val = item.value;
+          if (item.type === 'button') {
+            try {
+              const btn = JSON.parse(val);
+              val = `[Button] Text: "${btn.text}", Link: "${btn.url}"`;
+            } catch (e) {}
+          }
+          keysHtml += `• <code>${key}</code>: <em>${val}</em><br>`;
+          count++;
+          if (count > 25) {
+            keysHtml += `<br><em>...and ${Object.keys(state.contentMap).length - 25} more keys.</em>`;
+            break;
+          }
+        }
+        return keysHtml;
+      }
+
+      // Check for summarization / explain
+      if (lower.includes('summarize') || lower.includes('explain') || lower.includes('tell me about') || lower.includes('what is')) {
+        // Fallback to Server AI Chat endpoint (uses systemInstructions fallback instantly without Gemini API token)
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: command, history: [] })
+          });
+          const data = await res.json();
+          return data.reply || "I am the MazaoHub smart assistant. I can help you edit elements like button text, images, and visual numbers on this page!";
+        } catch (e) {
+          return "I am the MazaoHub smart assistant. I can help you edit text, button links, images, and numbers on the fly.";
+        }
+      }
+
+      // Check for editing commands (color changing via css injection)
+      if (lower.includes('color') || lower.includes('background of') || lower.includes('colour')) {
+        let targetColor = "red";
+        if (lower.includes('green')) targetColor = "#14c834";
+        else if (lower.includes('blue')) targetColor = "#007acc";
+        else if (lower.includes('yellow')) targetColor = "#ffcc00";
+        else if (lower.includes('orange')) targetColor = "#ff8800";
+        else if (lower.includes('white')) targetColor = "#ffffff";
+        else if (lower.includes('black')) targetColor = "#000000";
+
+        // Try injecting CSS directly in the iframe
+        try {
+          const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+          
+          // Let's identify the button/element to color
+          let matchedEl = null;
+          if (lower.includes('join') || lower.includes('fec') || lower.includes('excellence')) {
+            matchedEl = doc.querySelector('.btn-pri, a[href*="register"]');
+          } else if (lower.includes('demo') || lower.includes('request')) {
+            matchedEl = doc.querySelector('.btn-ghost, a[href*="demo"]');
+          } else if (lower.includes('explore') || lower.includes('global')) {
+            matchedEl = doc.querySelector('a[href*="global"]');
+          }
+
+          if (matchedEl) {
+            matchedEl.style.backgroundColor = targetColor;
+            matchedEl.style.color = (targetColor === '#ffffff' || targetColor === 'white') ? '#000000' : '#ffffff';
+            matchedEl.classList.add('flash-highlight');
+            setTimeout(() => matchedEl.classList.remove('flash-highlight'), 1500);
+
+            return `🎨 Applied style change: I've updated the button styling inside the preview window to <strong>${targetColor}</strong>. (Note: Visual color edits are applied dynamically in your current screen).`;
+          }
+        } catch (e) {
+          console.error("Iframe style injection failed", e);
+        }
+        return "I found your request to update color styles, but I couldn't locate that specific button in the current view of the preview window.";
+      }
+
+      // Parsing numeric counters modifications (e.g. Farmers count, soil tests count, etc.)
+      const numMatch = command.match(/\d+[,.\d]*/);
+      if (numMatch) {
+        const rawNumStr = numMatch[0];
+        const targetValue = parseInt(rawNumStr.replace(/[^0-9]/g, ''), 10);
+
+        let targetKey = null;
+        let originalLabel = "";
+
+        if (lower.includes('farmer')) {
+          targetKey = 'home:hero:hero-chips:chip:b';
+          originalLabel = "Farmers Count";
+        } else if (lower.includes('soil') || lower.includes('test')) {
+          targetKey = 'home:hero:hero-chips:chip:1:b';
+          originalLabel = "Soil Tests Made";
+        } else if (lower.includes('clinic') || lower.includes('fec')) {
+          targetKey = 'home:hero:hero-chips:chip:2:b';
+          originalLabel = "Farm Clinics";
+        } else if (lower.includes('countr') || lower.includes('active')) {
+          targetKey = 'home:hero:hero-chips:chip:3:b';
+          originalLabel = "Countries Active";
+        }
+
+        if (targetKey) {
+          if (!state.authenticated) {
+            return `🔑 <strong>Authorization Required</strong>: To save the modified counter value (${targetValue.toLocaleString()}) to the website database, please authenticate the agent using the credentials block in the sidebar first.`;
+          }
+
+          const saveSuccess = await saveCMSKey(targetKey, targetValue.toString(), 'text');
+          if (saveSuccess) {
+            try {
+              const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+              // Flash the updated element inside the iframe
+              const targetB = Array.from(doc.querySelectorAll('b')).find(el => el.getAttribute('data-count'));
+              if (targetB) {
+                targetB.classList.add('flash-highlight');
+                setTimeout(() => targetB.classList.remove('flash-highlight'), 2000);
+              }
+            } catch (e) {}
+
+            return `✅ <strong>Database Edits Applied Successfully</strong>:<br>I have modified the counter <strong>${originalLabel}</strong> (Key: <code>${targetKey}</code>) from its old value to <strong>${targetValue.toLocaleString()}</strong>. The live preview has been updated.`;
+          } else {
+            return "⚠️ Database write error: The agent encountered a server authentication issue while attempting to save changes.";
+          }
+        }
+      }
+
+      // Text/Heading edits (e.g. Change title to '...')
+      const textMatch = command.match(/change\s+(?:the\s+)?(?:text|heading|title|paragraph)\s+(?:to|with)\s+["']?([^"']+)["']?/i);
+      if (textMatch) {
+        const newTextVal = textMatch[1];
+        let targetKey = null;
+        let keyLabel = "";
+
+        if (lower.includes('lead') || lower.includes('paragraph') || lower.includes('mazaohub is')) {
+          targetKey = 'home:hero:lead:p';
+          keyLabel = "Lead Paragraph";
+        } else if (lower.includes('title') || lower.includes('heading') || lower.includes('smallholder')) {
+          targetKey = 'home:hero:reveal:h1';
+          keyLabel = "Hero Heading";
+        }
+
+        if (targetKey) {
+          if (!state.authenticated) {
+            return `🔑 <strong>Authorization Required</strong>: To save your heading/text changes, please authenticate the agent first in the sidebar credentials block.`;
+          }
+          const saveSuccess = await saveCMSKey(targetKey, newTextVal, 'text');
+          if (saveSuccess) {
+            return `✅ <strong>Text Updated</strong>:<br>Successfully updated the <strong>${keyLabel}</strong> to: <em>"${newTextVal}"</em>. The live website preview has updated.`;
+          } else {
+            return "⚠️ Error: The server rejected the text update. Please verify authentication.";
+          }
+        }
+      }
+
+      // Image replacements (e.g. Replace background with url)
+      const urlMatch = command.match(/https?:\/\/[^\s]+/i);
+      if (urlMatch && (lower.includes('image') || lower.includes('pic') || lower.includes('photo') || lower.includes('background') || lower.includes('replace'))) {
+        const newImgUrl = urlMatch[0];
+        let targetKey = null;
+        let imgLabel = "";
+
+        if (lower.includes('background') || lower.includes('hero') || lower.includes('leaf')) {
+          targetKey = 'home:hero:hero-bg:img';
+          imgLabel = "Hero Background Image";
+        }
+
+        if (targetKey) {
+          if (!state.authenticated) {
+            return `🔑 <strong>Authorization Required</strong>: Please authenticate the agent first to allow database writes for background images.`;
+          }
+          const saveSuccess = await saveCMSKey(targetKey, newImgUrl, 'image');
+          if (saveSuccess) {
+            return `📸 <strong>Image Replaced Successfully</strong>:<br>Updated the <strong>${imgLabel}</strong> (Key: <code>${targetKey}</code>) to reference: <br><a href="${newImgUrl}" target="_blank" style="color: var(--primary-color);">${newImgUrl}</a>.`;
+          } else {
+            return "⚠️ Error: The backend failed to persist the image url change.";
+          }
+        }
+      }
+
+      return "🤖 <strong>Instruction Received</strong>: I parsed your query, but to complete this task I need a more specific target. You can ask me to change counts (e.g., 'Change Farmers count to 150000') or replace text headers.";
+    }
+
+    // Call save API directly
+    async function saveCMSKey(key, value, type) {
+      try {
+        // Get current drafts
+        const draftRes = await fetch('/api/content/draft');
+        const draftData = await draftRes.json();
+        
+        // Prepare draft updates
+        const draftChanges = draftData;
+        draftChanges[key] = { value, type };
+
+        // Save draft changes
+        const saveRes = await fetch('/api/content/save-draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftChanges)
+        });
+        const saveStatus = await saveRes.json();
+
+        // Publish live automatically
+        if (saveStatus.success) {
+          const pubRes = await fetch('/api/content/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const pubStatus = await pubRes.json();
+          if (pubStatus.success) {
+            previewFrame.contentWindow.location.reload();
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error("Agent failed to save edits", e);
+      }
+      return false;
+    }
+
+    // Monitor frame navigation
+    previewFrame.addEventListener('load', () => {
+      try {
+        const currentPath = previewFrame.contentWindow.location.pathname + previewFrame.contentWindow.location.hash;
+        iframeUrlBadge.innerText = currentPath;
+      } catch (e) {}
+    });
+
+    // Run auth check on load
+    checkAuth();
+  </script>
+</body>
+</html>
