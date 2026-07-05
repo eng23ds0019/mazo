@@ -3,4 +3,5 @@ node_modules/
 temp_uploads/
 public/uploads/*
 !public/uploads/.gitkeep
+!public/uploads/team_member_*
 .DS_Store

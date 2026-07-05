@@ -138,10 +138,12 @@
           el.innerHTML = item.value;
         }
       } else if (item.type === 'image') {
-        if (el.tagName === 'IMG') {
-          el.setAttribute('src', item.value);
-        } else {
-          el.style.backgroundImage = `url('${item.value}')`;
+        if (item.value) {
+          if (el.tagName === 'IMG') {
+            el.setAttribute('src', item.value);
+          } else {
+            el.style.backgroundImage = `url('${item.value}')`;
+          }
         }
       } else if (item.type === 'button') {
         const btnData = JSON.parse(item.value);
@@ -1015,8 +1017,17 @@
       e.preventDefault();
       e.stopPropagation();
     }
+    
+    if (state.autoSaveTimer) {
+      clearTimeout(state.autoSaveTimer);
+      state.autoSaveTimer = null;
+    }
+    
     if (confirm('Are you sure you want to cancel all changes made in this editing session? This will restore the last published version.')) {
       try {
+        state.draftChanges = {};
+        state.isDirty = false;
+        
         const res = await fetch(`/api/content/discard-draft?t=${Date.now()}`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
@@ -1170,6 +1181,9 @@
 
       const popover = document.querySelector('.cms-popover');
       if (popover) popover.remove();
+
+      const chatWindow = document.getElementById('mazaohub-chat-window');
+      if (chatWindow) chatWindow.style.display = 'none';
 
       if (state.activeSection) {
         deactivateSectionEditing();

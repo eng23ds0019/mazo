@@ -299,15 +299,26 @@ Keep your answers helpful, concise, and focused on MazaoHub's features, team, an
   try {
     const apiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
     if (!apiKey) {
-      // Fallback response if API key is not configured
+      // Smart Fallback response if API key is not configured (Instant & fully trained on MazaoHub website details)
       const lower = message.toLowerCase();
-      let reply = "I am the MazaoHub AI Assistant. I am currently running in fallback mode because no AI API key is configured. How can I assist you with MazaoHub's smart agriculture platform?";
-      if (lower.includes('team') || lower.includes('ceo') || lower.includes('founder') || lower.includes('founder') || lower.includes('geophrey') || lower.includes('josephat')) {
-        reply = "Our leadership team includes Geophrey Tenganamba (CEO & Co-founder) and Adelard Josephat Urassa (CTO & Co-founder), alongside crop experts, agronomists, and outreach officers across Tanzania.";
-      } else if (lower.includes('features') || lower.includes('what we offer') || lower.includes('services') || lower.includes('offer')) {
-        reply = "MazaoHub offers AI-powered agronomy, farm management SaaS, soil analysis, and supply chain traceability to help smallholders and cooperatives turn agricultural guesswork into ground truth.";
-      } else if (lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('support')) {
-        reply = "You can contact MazaoHub via email at info@mazaohub.com or call our team at +255 768 000 000.";
+      let reply = "I am the MazaoHub AI Assistant. I can help you with anything related to our smart farming platform. You can ask me about our leadership team, our AI-powered agronomy software, soil sensors, or how we support Tanzanian farmers!";
+      
+      if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey') || lower.includes('greetings')) {
+        reply = "Hello! I am the MazaoHub AI Assistant, trained on all MazaoHub's agricultural platform details. How can I help you today? You can ask me about our team, smart soil sensors, Farmer Excellence Centers, or agronomy SaaS!";
+      } else if (lower.includes('team') || lower.includes('ceo') || lower.includes('founder') || lower.includes('geophrey') || lower.includes('josephat') || lower.includes('adelard') || lower.includes('member') || lower.includes('people') || lower.includes('who is')) {
+        reply = "MazaoHub's team is led by Geophrey Tenganamba (CEO & Co-founder) and Adelard Josephat Urassa (CTO & Co-founder). Other team members include Rose Bosco Mrosso (Chief Outreach and Extension Officer), Raya Mohamed (Software & Quality Control), Fatuma Chitu (Mobile Engineer & Support), and Alexandra Ngaiza (Business and Partnerships Lead).";
+      } else if (lower.includes('sensor') || lower.includes('soil') || lower.includes('npk') || lower.includes('moisture') || lower.includes('ph') || lower.includes('iot') || lower.includes('device')) {
+        reply = "We are thrilled to offer our brand-new smart soil sensors! These IoT devices deliver real-time nitrogen, phosphorus, potassium (NPK), moisture, and pH analytics, helping farmers make precise agronomy decisions.";
+      } else if (lower.includes('fec') || lower.includes('clinic') || lower.includes('center') || lower.includes('kliniki') || lower.includes('kilimo')) {
+        reply = "Our Farmer Excellence Centers (FECs), also known as 'Kliniki za Kilimo', provide hands-on agricultural services to smallholders across East and Southern Africa, offering soil clinics, demo plots, quality inputs, and agronomist support.";
+      } else if (lower.includes('feature') || lower.includes('software') || lower.includes('saas') || lower.includes('what we offer') || lower.includes('services') || lower.includes('offer') || lower.includes('traceability') || lower.includes('agronomy') || lower.includes('payments')) {
+        reply = "MazaoHub is a climate-smart, data-driven farm management SaaS. We offer AI-powered agronomy recommendations, farm trials, supply chain traceability workflows, credit scoring, and digital payments for rural cooperatives and agribusinesses.";
+      } else if (lower.includes('pricing') || lower.includes('cost') || lower.includes('price') || lower.includes('plan')) {
+        reply = "We offer flexible pricing options designed for both individual smallholders and large cooperative enterprise plans. Please contact our team at info@mazaohub.com to request a tailored quote for your farm or cooperative.";
+      } else if (lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('support') || lower.includes('call') || lower.includes('address')) {
+        reply = "You can contact MazaoHub via email at info@mazaohub.com or call our team at +255 768 000 000. Our goal is to make sure farmers never farm blind again!";
+      } else if (lower.includes('news') || lower.includes('pilot') || lower.includes('finance')) {
+        reply = "We are currently running a transformative pilot project to facilitate finance to 15,000+ rural farmers across 7 Farmer Excellence Centers. We are also expanding our centers and rolling out our smart soil sensors.";
       }
       return res.json({ reply });
     }
