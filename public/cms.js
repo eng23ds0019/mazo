@@ -133,6 +133,9 @@
             el.innerHTML = item.value;
           } else {
             el.innerHTML = '0';
+            if (typeof window.animateCount === 'function') {
+              window.animateCount(el);
+            }
           }
         } else {
           el.innerHTML = item.value;
