@@ -126,7 +126,17 @@
       if (!el) continue;
 
       if (item.type === 'text') {
-        el.innerHTML = item.value;
+        if (el.hasAttribute('data-count')) {
+          const cleanNum = item.value.replace(/[^0-9]/g, '');
+          el.setAttribute('data-count', cleanNum);
+          if (state.editMode && !state.previewMode) {
+            el.innerHTML = item.value;
+          } else {
+            el.innerHTML = '0';
+          }
+        } else {
+          el.innerHTML = item.value;
+        }
       } else if (item.type === 'image') {
         if (el.tagName === 'IMG') {
           el.setAttribute('src', item.value);
@@ -263,7 +273,7 @@
     loginBtn.id = 'cms-admin-login-btn';
     loginBtn.innerHTML = '🔑 Admin Login';
     loginBtn.addEventListener('click', showLoginModal);
-    navCta.insertBefore(loginBtn, navCta.firstChild);
+    navCta.appendChild(loginBtn);
   }
 
   // Render Admin credentials modal
@@ -388,14 +398,42 @@
     while (node = walk.nextNode()) {
       const text = node.textContent.trim();
       if (text.length > 0) {
-        const parentEl = node.parentElement;
-        if (parentEl && 
-            parentEl.tagName !== 'SCRIPT' && 
-            parentEl.tagName !== 'STYLE' && 
-            !isCmsElement(parentEl) &&
-            !editableElements.includes(parentEl)) {
-          
-          editableElements.push(parentEl);
+        let parentEl = node.parentElement;
+        if (!parentEl || parentEl.tagName === 'SCRIPT' || parentEl.tagName === 'STYLE' || isCmsElement(parentEl)) {
+          continue;
+        }
+
+        let highest = parentEl;
+        let current = parentEl;
+
+        while (current && current !== section) {
+          const tag = current.tagName;
+          const parent = current.parentElement;
+          if (parent) {
+            const pTag = parent.tagName;
+            if (parent.hasAttribute('data-count') || pTag === 'A' || parent.classList.contains('chip') || parent.classList.contains('cn') || parent === section) {
+              break;
+            }
+          }
+
+          if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'LI', 'B', 'STRONG', 'SPAN', 'TD', 'TH', 'DIV'].includes(tag)) {
+            if (tag === 'DIV') {
+              const hasBlockChildren = Array.from(current.children).some(child => 
+                ['DIV', 'SECTION', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI'].includes(child.tagName)
+              );
+              if (hasBlockChildren) {
+                break;
+              }
+            }
+            highest = current;
+          } else {
+            break;
+          }
+          current = current.parentElement;
+        }
+
+        if (highest && !isCmsElement(highest) && !editableElements.includes(highest)) {
+          editableElements.push(highest);
         }
       }
     }
@@ -539,6 +577,10 @@
 
   // Track DOM content updates and assign changes
   function trackDOMEdits(el, section, type, value) {
+    if (el.hasAttribute('data-count')) {
+      const cleanNum = value.replace(/[^0-9]/g, '');
+      el.setAttribute('data-count', cleanNum);
+    }
     const key = getElementKey(el, section);
     state.draftChanges[key] = { value, type };
     markAsDirty();
@@ -1120,4 +1162,18 @@
   }
   
   document.addEventListener('selectionchange', handleTextSelection);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = document.querySelector('.cms-modal-overlay');
+      if (modal) modal.remove();
+
+      const popover = document.querySelector('.cms-popover');
+      if (popover) popover.remove();
+
+      if (state.activeSection) {
+        deactivateSectionEditing();
+      }
+    }
+  });
 })();

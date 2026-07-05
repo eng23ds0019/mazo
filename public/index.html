@@ -3033,6 +3033,15 @@ function regionFor(name){
  V.forEach(function(v){ROUTES[v.getAttribute('data-route')]=v;});
  function swap(r){var f=ROUTES[r]||ROUTES['home'];V.forEach(function(v){v.style.display=(v===f)?'block':'none';});if(f)f.querySelectorAll('.reveal').forEach(function(e){e.classList.add('in');});return f;}
  function show(){var h=decodeURIComponent(location.hash.replace(/^#/,'').replace(/^\//,'').replace(/\/$/,''));
+  if(document.body.classList.contains('cms-edit-mode')){
+   var targetId = h.replace(/^engine\//, '').replace(/^portfolio\//, '');
+   var el = document.getElementById(targetId);
+   if (el) {
+    swap('home');
+    el.scrollIntoView({behavior:'smooth'});
+    return;
+   }
+  }
   if(h===''){swap('home');window.scrollTo(0,0);return;}
   if(ROUTES[h]){swap(h);window.scrollTo(0,0);return;}
   if(h.indexOf('news/')===0||h.indexOf('portfolio/')===0||h.indexOf('service/')===0||h.indexOf('engine/')===0){swap(h);window.scrollTo(0,0);return;}
