@@ -209,9 +209,9 @@ async function getUser(username) {
 async function getLiveContent() {
   if (dbType === 'memory') {
     const contentMap = {};
-    Object.entries(memoryState.content).forEach(([key, item]) => {
+    Object.values(memoryState.content).forEach(item => {
       if (item.version === 'live') {
-        contentMap[key] = { value: item.value, type: item.type };
+        contentMap[item.key] = { value: item.value, type: item.type };
       }
     });
     return contentMap;
@@ -238,15 +238,15 @@ async function getDraftContent() {
   if (dbType === 'memory') {
     const contentMap = {};
 
-    Object.entries(memoryState.content).forEach(([key, item]) => {
+    Object.values(memoryState.content).forEach(item => {
       if (item.version === 'live') {
-        contentMap[key] = { value: item.value, type: item.type };
+        contentMap[item.key] = { value: item.value, type: item.type };
       }
     });
 
-    Object.entries(memoryState.content).forEach(([key, item]) => {
+    Object.values(memoryState.content).forEach(item => {
       if (item.version === 'draft') {
-        contentMap[key] = { value: item.value, type: item.type };
+        contentMap[item.key] = { value: item.value, type: item.type };
       }
     });
 
@@ -291,7 +291,9 @@ async function getDraftContent() {
 async function saveDraft(changes) {
   if (dbType === 'memory') {
     for (const [key, item] of Object.entries(changes)) {
-      memoryState.content[key] = {
+      const compositeKey = `${key}:draft`;
+      memoryState.content[compositeKey] = {
+        key,
         value: item.value,
         type: item.type,
         version: 'draft'
@@ -334,9 +336,11 @@ async function saveDraft(changes) {
 
 async function publishDraft() {
   if (dbType === 'memory') {
-    Object.entries(memoryState.content).forEach(([key, item]) => {
+    Object.values(memoryState.content).forEach(item => {
       if (item.version === 'draft') {
-        memoryState.content[key] = {
+        const liveKey = `${item.key}:live`;
+        memoryState.content[liveKey] = {
+          key: item.key,
           value: item.value,
           type: item.type,
           version: 'live'
@@ -385,9 +389,9 @@ async function publishDraft() {
 
 async function discardDraft() {
   if (dbType === 'memory') {
-    Object.keys(memoryState.content).forEach(key => {
-      if (memoryState.content[key].version === 'draft') {
-        delete memoryState.content[key];
+    Object.keys(memoryState.content).forEach(compositeKey => {
+      if (memoryState.content[compositeKey].version === 'draft') {
+        delete memoryState.content[compositeKey];
       }
     });
     return;

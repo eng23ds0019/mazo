@@ -521,3 +521,33 @@ body.cms-edit-mode .cms-element-hidden::after {
   border-radius: 3px;
   z-index: 999;
 }
+
+/* Floating selection formatting toolbar */
+.cms-formatting-toolbar {
+  position: absolute;
+  background: #082d11;
+  border: 1px solid rgba(20, 200, 52, 0.35);
+  border-radius: 8px;
+  padding: 6px;
+  display: none;
+  gap: 8px;
+  z-index: 100000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  align-items: center;
+}
+.cms-format-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.cms-format-btn:hover {
+  background: rgba(255,255,255,0.1);
+}

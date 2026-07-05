@@ -1028,4 +1028,96 @@
       location.reload();
     }
   }
+
+  // Formatting Toolbar for text selection in contenteditable elements
+  function createFormattingToolbar() {
+    let toolbar = document.getElementById('cms-formatting-toolbar');
+    if (toolbar) return toolbar;
+    
+    toolbar = document.createElement('div');
+    toolbar.id = 'cms-formatting-toolbar';
+    toolbar.className = 'cms-formatting-toolbar';
+    toolbar.innerHTML = `
+      <button class="cms-format-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+      <button class="cms-format-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+      <button class="cms-format-btn" data-cmd="foreColor" data-value="#f0a30a" title="Yellow/Gold" style="color: #f0a30a;">●</button>
+      <button class="cms-format-btn" data-cmd="foreColor" data-value="var(--grn)" title="Green" style="color: #14c834;">●</button>
+      <button class="cms-format-btn" data-cmd="foreColor" data-value="#ffffff" title="White" style="color: #ffffff; text-shadow: 0 0 2px #000;">●</button>
+      <button class="cms-format-btn" data-cmd="removeFormat" title="Clear Formatting">⌫</button>
+    `;
+    document.body.appendChild(toolbar);
+    
+    toolbar.querySelectorAll('.cms-format-btn').forEach(btn => {
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const cmd = btn.getAttribute('data-cmd');
+        const val = btn.getAttribute('data-value') || null;
+        
+        if (cmd === 'foreColor') {
+          document.execCommand('styleWithCSS', false, true);
+          document.execCommand(cmd, false, val);
+        } else {
+          document.execCommand(cmd, false, val);
+        }
+        
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          let container = selection.getRangeAt(0).commonAncestorContainer;
+          if (container.nodeType === Node.TEXT_NODE) {
+            container = container.parentElement;
+          }
+          const editableEl = container.closest('[data-cms-editable]');
+          if (editableEl) {
+            const section = editableEl.closest('.cms-section-container');
+            if (section) {
+              trackDOMEdits(editableEl, section, 'text', editableEl.innerHTML);
+            }
+          }
+        }
+      });
+    });
+    
+    return toolbar;
+  }
+  
+  function handleTextSelection() {
+    if (!state.editMode || state.previewMode) {
+      hideFormattingToolbar();
+      return;
+    }
+    
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
+      hideFormattingToolbar();
+      return;
+    }
+    
+    let container = selection.getRangeAt(0).commonAncestorContainer;
+    if (container.nodeType === Node.TEXT_NODE) {
+      container = container.parentElement;
+    }
+    
+    const editableEl = container.closest('[data-cms-editable="true"]');
+    if (!editableEl) {
+      hideFormattingToolbar();
+      return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const toolbar = createFormattingToolbar();
+    
+    toolbar.style.display = 'flex';
+    toolbar.style.top = `${rect.top + window.scrollY - 40}px`;
+    toolbar.style.left = `${rect.left + window.scrollX + (rect.width / 2) - 80}px`;
+  }
+  
+  function hideFormattingToolbar() {
+    const toolbar = document.getElementById('cms-formatting-toolbar');
+    if (toolbar) {
+      toolbar.style.display = 'none';
+    }
+  }
+  
+  document.addEventListener('selectionchange', handleTextSelection);
 })();

@@ -280,6 +280,57 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
   }
 });
 
+// 10. AI Assistant Chat
+app.post('/api/chat', async (req, res) => {
+  const { message, history } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: 'Message is required.' });
+  }
+
+  const systemInstructions = `You are the official MazaoHub AI Assistant. You are a helpful, professional, and knowledgeable agritech expert.
+Here are the details about MazaoHub:
+- It is a Tanzanian agritech platform providing climate-smart, data-driven farm management software (SaaS).
+- Features: AI-powered agronomy (personalized crop, soil, weather recommendations), farm management, supply chain traceability, credit scoring, and digital payments.
+- Team: Geophrey Tenganamba (CEO & Co Founder), Adelard Josephat Urassa (CTO & Co Founder), Rose Bosco Mrosso (Chief Outreach and Extension Officer), Raya Mohamed (Software & Quality Control), Fatuma Chitu (Mobile Engineer & Support), Alexandra Ngaiza (Business and Partnerships Lead), Janeth Sambwe (Administration Manager), Juma Debe (Outreach and Extension Officer), Godfrey Makonge (Agronomist and Crop Expert), Magreth Machinyita (Outreach and Extension Officer), Gabriel Zawadi Magombe (Mobile Developer), Winfrida Apolinary Mariwa (Outreach and Extension Officer), Deograsias Michael Kauki (Outreach and Extension Officer), Levina Anthony Mlumange (Tabora Region Outreach and Extension Officer), Veronica Pius Kabanya (Extension Officer), Joshua Robert Mgalula (Graphic Designer), Jacob John Malambo (Monitoring and Evaluation Lead), Malusu J. Lubuva (Chief Operation and Performance Officer), Raya Nyagawa (Agronomist & Call Center Support), Fadhili Mwanja (Agronomist & Call Center Support), Daudi Nalimi (Agronomist & Call Center Support), Rabia A. Mdoe (Accountant), Mary Charles Mnyeke (Chief CropSupply Officer), JOANES SAMBWE (Marketing Creative), Thomas D. Mkangara (Chief Operation Cropsupply), James O. Kabuka (Head of Technical Support & Trainings).
+- Contact: info@mazaohub.com, +255 768 000 000.
+- Goal: "We make sure they never farm blind again."
+Keep your answers helpful, concise, and focused on MazaoHub's features, team, and services.`;
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
+    if (!apiKey) {
+      // Fallback response if API key is not configured
+      const lower = message.toLowerCase();
+      let reply = "I am the MazaoHub AI Assistant. I am currently running in fallback mode because no AI API key is configured. How can I assist you with MazaoHub's smart agriculture platform?";
+      if (lower.includes('team') || lower.includes('ceo') || lower.includes('founder') || lower.includes('founder') || lower.includes('geophrey') || lower.includes('josephat')) {
+        reply = "Our leadership team includes Geophrey Tenganamba (CEO & Co-founder) and Adelard Josephat Urassa (CTO & Co-founder), alongside crop experts, agronomists, and outreach officers across Tanzania.";
+      } else if (lower.includes('features') || lower.includes('what we offer') || lower.includes('services') || lower.includes('offer')) {
+        reply = "MazaoHub offers AI-powered agronomy, farm management SaaS, soil analysis, and supply chain traceability to help smallholders and cooperatives turn agricultural guesswork into ground truth.";
+      } else if (lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('support')) {
+        reply = "You can contact MazaoHub via email at info@mazaohub.com or call our team at +255 768 000 000.";
+      }
+      return res.json({ reply });
+    }
+
+    const response = await global.fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          { role: 'user', parts: [{ text: `${systemInstructions}\n\nUser conversation history: ${JSON.stringify(history)}\n\nUser message: ${message}` }] }
+        ]
+      })
+    });
+    
+    const data = await response.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I'm having trouble connecting to my brain right now. Please try again.";
+    res.json({ reply });
+  } catch (err) {
+    console.error('AI chat error:', err);
+    res.status(500).json({ error: 'Failed to generate response.' });
+  }
+});
+
 // Fallback: serve index.html for non-API requests in all environments.
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) {
