@@ -41,6 +41,18 @@
     autoSaveTimer: null
   };
 
+  // Get combined content map (live content + draft changes)
+  function getActiveContentMap() {
+    const combined = {};
+    for (const [key, item] of Object.entries(state.content)) {
+      combined[key] = item;
+    }
+    for (const [key, item] of Object.entries(state.draftChanges)) {
+      combined[key] = item;
+    }
+    return combined;
+  }
+
   // Helper: check if element belongs to the CMS dashboard/toolbar/popover/modal
   function isCmsElement(el) {
     if (!el) return false;
@@ -372,6 +384,9 @@
   function enterEditMode() {
     state.editMode = true;
     document.body.classList.add('cms-edit-mode');
+
+    // Restore raw editable values in the DOM for editing
+    applyContentMap(getActiveContentMap());
 
     // Add Section hover overlay buttons to sections, headers, and footers
     document.querySelectorAll('.cms-section-container').forEach(section => {
@@ -1108,6 +1123,9 @@
       previewBtn.innerText = 'Preview';
       previewBtn.classList.remove('cms-primary');
     }
+
+    // Re-apply content map to toggle between view layout (animations/zeros) and edit layout (raw values)
+    applyContentMap(getActiveContentMap());
   }
 
   // Sign out admin session
