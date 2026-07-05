@@ -127,6 +127,34 @@
 
   // Parse key and update DOM values
   function applyContentMap(contentMap) {
+    // Handle special CMS-managed keys before DOM iteration
+    // -- SEO meta tags --
+    if (contentMap['cms-seo-title'] && contentMap['cms-seo-title'].value) {
+      document.title = contentMap['cms-seo-title'].value;
+    }
+    if (contentMap['cms-seo-description'] && contentMap['cms-seo-description'].value) {
+      let metaDesc = document.querySelector('meta[name="description"]');
+      if (!metaDesc) { metaDesc = document.createElement('meta'); metaDesc.name = 'description'; document.head.appendChild(metaDesc); }
+      metaDesc.content = contentMap['cms-seo-description'].value;
+    }
+    // -- Dynamic news articles injected by the CMS Add Article feature --
+    if (contentMap['cms-news-articles'] && contentMap['cms-news-articles'].value) {
+      try {
+        const articles = JSON.parse(contentMap['cms-news-articles'].value);
+        const grid = document.querySelector('.news-grid');
+        if (grid && Array.isArray(articles) && articles.length > 0) {
+          grid.querySelectorAll('.cms-injected-article').forEach(el => el.remove());
+          articles.slice().reverse().forEach(art => {
+            const card = document.createElement('a');
+            card.className = 'ncard reveal cms-injected-article';
+            card.href = art.href || '#';
+            card.innerHTML = `<span class="d"><span class="dot"></span>${art.date} &middot; ${art.category}</span><h3>${art.title}</h3><p>${art.excerpt}</p><span class="more">Read more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>`;
+            grid.prepend(card);
+          });
+        }
+      } catch(e) { console.error('cms-news-articles parse error:', e); }
+    }
+
     // First, restore container repeatable element counts
     for (const [key, item] of Object.entries(contentMap)) {
       if (key.endsWith(':count')) {
@@ -139,7 +167,8 @@
     // Second, update element texts, links, images, and visibility states
     for (const [key, item] of Object.entries(contentMap)) {
       if (key.endsWith(':count')) continue;
-      
+      if (key.startsWith('cms-seo-') || key === 'cms-news-articles') continue; // already handled above
+
       const el = resolveKeyToElement(key);
       if (!el) continue;
 
@@ -913,7 +942,9 @@
       <button type="button" class="cms-toolbar-btn" id="cms-redo-btn" disabled>Redo</button>
       <button type="button" class="cms-toolbar-btn cms-danger" id="cms-cancel-btn">Cancel Changes</button>
       <button type="button" class="cms-toolbar-btn" id="cms-default-btn" style="margin-left: 20px;" title="Reset entire website to original HTML defaults">↩ Default</button>
-      <button type="button" class="cms-toolbar-btn" id="cms-img-history-btn" title="View & restore replaced images">📸 Image History</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-img-history-btn" title="View & restore replaced images">📸 Img History</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-add-article-btn" style="background:#e8b23a;color:#000;font-weight:bold;" title="Add a new Field Notes article">✏️ Add Article</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-seo-btn" style="background:#1a6fe8;color:#fff;font-weight:bold;" title="Edit page SEO (title, description)">🔍 SEO</button>
       <button type="button" class="cms-toolbar-btn" id="cms-agent-btn" style="background: #14c834; color: #000; font-weight: bold;">🤖 AI Agent</button>
       <button type="button" class="cms-toolbar-btn" id="cms-logout-btn" style="margin-left: 10px;">Logout</button>
     `;
@@ -933,6 +964,135 @@
     });
     toolbar.querySelector('#cms-default-btn').addEventListener('click', resetToDefault);
     toolbar.querySelector('#cms-img-history-btn').addEventListener('click', showImageHistoryModal);
+    toolbar.querySelector('#cms-add-article-btn').addEventListener('click', showAddArticleModal);
+    toolbar.querySelector('#cms-seo-btn').addEventListener('click', showSeoModal);
+  }
+
+  // ─── Add Article Modal ─────────────────────────────────────────────────────
+  function showAddArticleModal() {
+    document.querySelectorAll('.cms-modal-overlay').forEach(m => m.remove());
+    const overlay = document.createElement('div');
+    overlay.className = 'cms-modal-overlay active';
+    const today = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }).replace(/ /g, ' ');
+    overlay.innerHTML = `
+      <div class="cms-modal-content" style="max-width:520px">
+        <button class="cms-modal-close">&times;</button>
+        <h3 class="cms-modal-title">✏️ Add New Article</h3>
+        <p style="font-size:12px;color:#8fa894;margin-bottom:16px;">This article will be prepended to the Field Notes grid and published immediately.</p>
+        <form id="cms-article-form">
+          <div class="cms-form-group"><label class="cms-form-label">Title *</label><input type="text" class="cms-form-input" id="art-title" placeholder="Eg: Why African Farmers Need Better Soil Data" required></div>
+          <div class="cms-form-group"><label class="cms-form-label">Excerpt *</label><textarea class="cms-form-input" id="art-excerpt" rows="3" placeholder="Short summary shown in the card..." required></textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="cms-form-group"><label class="cms-form-label">Date</label><input type="text" class="cms-form-input" id="art-date" value="${today}"></div>
+            <div class="cms-form-group"><label class="cms-form-label">Category</label><input type="text" class="cms-form-input" id="art-category" placeholder="Field Notes"></div>
+          </div>
+          <div class="cms-form-group"><label class="cms-form-label">Link (URL)</label><input type="text" class="cms-form-input" id="art-href" placeholder="https://... or #/news/my-slug"></div>
+          <div style="display:flex;gap:12px;margin-top:8px;">
+            <button type="submit" class="cms-btn cms-btn-pri" style="flex:1;">Add &amp; Publish</button>
+            <button type="button" class="cms-btn cms-btn-sec cms-cancel" style="flex:1;">Cancel</button>
+          </div>
+        </form>
+      </div>`;
+    overlay.querySelector('.cms-modal-close').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('.cms-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#cms-article-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title    = document.getElementById('art-title').value.trim();
+      const excerpt  = document.getElementById('art-excerpt').value.trim();
+      const date     = document.getElementById('art-date').value.trim();
+      const category = document.getElementById('art-category').value.trim() || 'Field Notes';
+      const href     = document.getElementById('art-href').value.trim() || '#';
+      if (!title || !excerpt) { alert('Title and Excerpt are required.'); return; }
+      const submitBtn = overlay.querySelector('button[type="submit"]');
+      submitBtn.disabled = true; submitBtn.innerText = 'Publishing...';
+      // Build new article object
+      const newArt = { title, excerpt, date, category, href, id: Date.now() };
+      // Load existing articles list from state
+      const existing = state.content['cms-news-articles'] || state.draftChanges['cms-news-articles'];
+      let articles = [];
+      if (existing && existing.value) { try { articles = JSON.parse(existing.value); } catch(_) {} }
+      articles.unshift(newArt); // newest first
+      const value = JSON.stringify(articles);
+      state.draftChanges['cms-news-articles'] = { value, type: 'json' };
+      // Inject into DOM immediately
+      const grid = document.querySelector('.news-grid');
+      if (grid) {
+        grid.querySelectorAll('.cms-injected-article').forEach(el => el.remove());
+        articles.slice().reverse().forEach(art => {
+          const card = document.createElement('a');
+          card.className = 'ncard reveal cms-injected-article';
+          card.href = art.href || '#';
+          card.innerHTML = `<span class="d"><span class="dot"></span>${art.date} &middot; ${art.category}</span><h3>${art.title}</h3><p>${art.excerpt}</p><span class="more">Read more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>`;
+          grid.prepend(card);
+        });
+      }
+      // Save draft + publish
+      const changes = { ...state.content, ...state.draftChanges };
+      await fetch('/api/content/save-draft', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ changes }) });
+      await fetch('/api/content/publish', { method:'POST', headers:{'Content-Type':'application/json'} });
+      overlay.remove();
+      alert(`Article "${title}" published successfully!`);
+    });
+    document.body.appendChild(overlay);
+  }
+
+  // ─── SEO Editor Modal ──────────────────────────────────────────────────────
+  function showSeoModal() {
+    document.querySelectorAll('.cms-modal-overlay').forEach(m => m.remove());
+    // Read current values
+    const currentTitle = (state.content['cms-seo-title'] || state.draftChanges['cms-seo-title'])?.value || document.title || '';
+    const currentDesc  = (state.content['cms-seo-description'] || state.draftChanges['cms-seo-description'])?.value
+                       || document.querySelector('meta[name="description"]')?.content || '';
+    const overlay = document.createElement('div');
+    overlay.className = 'cms-modal-overlay active';
+    overlay.innerHTML = `
+      <div class="cms-modal-content" style="max-width:520px">
+        <button class="cms-modal-close">&times;</button>
+        <h3 class="cms-modal-title">🔍 SEO Settings</h3>
+        <p style="font-size:12px;color:#8fa894;margin-bottom:16px;">Changes update the page &lt;title&gt; and meta description immediately and are published live.</p>
+        <form id="cms-seo-form">
+          <div class="cms-form-group">
+            <label class="cms-form-label">Page Title <span style="color:#8fa894;font-weight:400;">(shown in browser tab &amp; Google)</span></label>
+            <input type="text" class="cms-form-input" id="seo-title" value="${currentTitle.replace(/"/g,'&quot;')}" maxlength="70">
+            <span style="font-size:11px;color:#6b7b6b;">Recommended: 50–60 characters. <span id="seo-title-count">${currentTitle.length}</span>/70</span>
+          </div>
+          <div class="cms-form-group">
+            <label class="cms-form-label">Meta Description <span style="color:#8fa894;font-weight:400;">(shown in Google results)</span></label>
+            <textarea class="cms-form-input" id="seo-desc" rows="4" maxlength="160">${currentDesc.replace(/</g,'&lt;')}</textarea>
+            <span style="font-size:11px;color:#6b7b6b;">Recommended: 120–155 characters. <span id="seo-desc-count">${currentDesc.length}</span>/160</span>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:8px;">
+            <button type="submit" class="cms-btn cms-btn-pri" style="flex:1;">Save &amp; Publish SEO</button>
+            <button type="button" class="cms-btn cms-btn-sec cms-cancel" style="flex:1;">Cancel</button>
+          </div>
+        </form>
+      </div>`;
+    // Live character counters
+    overlay.querySelector('#seo-title').addEventListener('input', function() { overlay.querySelector('#seo-title-count').textContent = this.value.length; });
+    overlay.querySelector('#seo-desc').addEventListener('input', function() { overlay.querySelector('#seo-desc-count').textContent = this.value.length; });
+    overlay.querySelector('.cms-modal-close').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('.cms-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#cms-seo-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const titleVal = overlay.querySelector('#seo-title').value.trim();
+      const descVal  = overlay.querySelector('#seo-desc').value.trim();
+      const submitBtn = overlay.querySelector('button[type="submit"]');
+      submitBtn.disabled = true; submitBtn.innerText = 'Publishing...';
+      // Apply to document immediately
+      if (titleVal) document.title = titleVal;
+      let metaDesc = document.querySelector('meta[name="description"]');
+      if (!metaDesc) { metaDesc = document.createElement('meta'); metaDesc.name = 'description'; document.head.appendChild(metaDesc); }
+      if (descVal) metaDesc.content = descVal;
+      // Persist in draft changes
+      if (titleVal) { state.draftChanges['cms-seo-title'] = { value: titleVal, type: 'text' }; }
+      if (descVal)  { state.draftChanges['cms-seo-description'] = { value: descVal, type: 'text' }; }
+      const changes = { ...state.content, ...state.draftChanges };
+      await fetch('/api/content/save-draft', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ changes }) });
+      await fetch('/api/content/publish', { method:'POST', headers:{'Content-Type':'application/json'} });
+      overlay.remove();
+      alert('SEO settings published successfully!');
+    });
+    document.body.appendChild(overlay);
   }
 
   // Reset entire website to original HTML defaults
