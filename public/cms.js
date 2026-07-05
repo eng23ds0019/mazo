@@ -38,7 +38,9 @@
     content: {}, // baseline content loaded from DB
     draftChanges: {}, // un-saved local changes
     isDirty: false,
-    autoSaveTimer: null
+    autoSaveTimer: null,
+    defaultContent: null, // original HTML state before any DB overrides
+    imageHistory: {} // key -> [{url, label, timestamp}] history of replaced images
   };
 
   // Get combined content map (live content + draft changes)
@@ -113,6 +115,10 @@
       const endpoint = state.authenticated ? '/api/content/draft' : '/api/content';
       const res = await fetch(`${endpoint}?t=${Date.now()}`);
       state.content = await res.json();
+      // Capture the original raw HTML state once, before any DB overrides are applied
+      if (!state.defaultContent) {
+        state.defaultContent = serializeDOMState();
+      }
       applyContentMap(state.content);
     } catch (e) {
       console.error('Failed to load page content:', e);
@@ -694,6 +700,18 @@
       el.setAttribute('data-count', cleanNum);
     }
     const key = getElementKey(el, section);
+    // Track image history before overwriting
+    if (type === 'image') {
+      const oldUrl = state.draftChanges[key]?.value || state.content[key]?.value;
+      if (oldUrl && oldUrl !== value) {
+        if (!state.imageHistory[key]) state.imageHistory[key] = [];
+        state.imageHistory[key].push({
+          url: oldUrl,
+          label: key,
+          timestamp: new Date().toLocaleTimeString()
+        });
+      }
+    }
     state.draftChanges[key] = { value, type };
     markAsDirty();
     pushHistoryState();
@@ -889,7 +907,9 @@
       <button type="button" class="cms-toolbar-btn" id="cms-undo-btn" disabled>Undo</button>
       <button type="button" class="cms-toolbar-btn" id="cms-redo-btn" disabled>Redo</button>
       <button type="button" class="cms-toolbar-btn cms-danger" id="cms-cancel-btn">Cancel Changes</button>
-      <button type="button" class="cms-toolbar-btn" id="cms-agent-btn" style="background: #14c834; color: #000; font-weight: bold; margin-left: 20px;">🤖 AI Agent</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-default-btn" style="margin-left: 20px;" title="Reset entire website to original HTML defaults">↩ Default</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-img-history-btn" title="View & restore replaced images">📸 Image History</button>
+      <button type="button" class="cms-toolbar-btn" id="cms-agent-btn" style="background: #14c834; color: #000; font-weight: bold;">🤖 AI Agent</button>
       <button type="button" class="cms-toolbar-btn" id="cms-logout-btn" style="margin-left: 10px;">Logout</button>
     `;
 
@@ -906,6 +926,124 @@
     toolbar.querySelector('#cms-agent-btn').addEventListener('click', () => {
       window.open('/agent.html', '_blank');
     });
+    toolbar.querySelector('#cms-default-btn').addEventListener('click', resetToDefault);
+    toolbar.querySelector('#cms-img-history-btn').addEventListener('click', showImageHistoryModal);
+  }
+
+  // Reset entire website to original HTML defaults
+  async function resetToDefault() {
+    if (!confirm('Reset ALL website content to its original HTML defaults? This will overwrite every saved edit and publish immediately.')) return;
+    if (!state.defaultContent) {
+      alert('Original default state not captured yet. Please reload the page and try again.');
+      return;
+    }
+    try {
+      deactivateSectionEditing();
+      // Save the original state as the new draft
+      const saveRes = await fetch('/api/content/save-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changes: state.defaultContent })
+      });
+      const saveData = await saveRes.json();
+      if (!saveData.success) throw new Error(saveData.error || 'Save failed');
+      // Publish it immediately
+      const pubRes = await fetch('/api/content/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const pubData = await pubRes.json();
+      if (pubData.success) {
+        alert('Website reset to original defaults and published successfully.');
+        location.reload();
+      } else {
+        throw new Error(pubData.error || 'Publish failed');
+      }
+    } catch (err) {
+      console.error('Reset to default failed:', err);
+      alert('Reset failed: ' + err.message);
+    }
+  }
+
+  // Show image history modal so replaced images can be restored
+  function showImageHistoryModal() {
+    // Remove any existing modal
+    document.querySelectorAll('.cms-modal-overlay').forEach(m => m.remove());
+
+    const allHistory = Object.entries(state.imageHistory);
+    const overlay = document.createElement('div');
+    overlay.className = 'cms-modal-overlay active';
+
+    if (allHistory.length === 0) {
+      overlay.innerHTML = `
+        <div class="cms-modal-content" style="max-width:480px">
+          <button class="cms-modal-close">&times;</button>
+          <h3 class="cms-modal-title">📸 Image History</h3>
+          <p style="color:#8fa894;margin-top:12px;">No replaced images recorded in this session yet. Replace any image on the page and it will appear here for recovery.</p>
+        </div>`;
+    } else {
+      let rows = '';
+      allHistory.forEach(([key, entries]) => {
+        entries.slice().reverse().forEach((entry, i) => {
+          rows += `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+              <img src="${entry.url}" style="width:64px;height:44px;object-fit:cover;border-radius:4px;border:1px solid rgba(255,255,255,0.1);flex-shrink:0;" onerror="this.src='';this.alt='Missing'">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11px;color:#8fa894;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${key}">${key}</div>
+                <div style="font-size:11px;color:#6b7b6b;margin-top:2px;">Replaced at ${entry.timestamp}</div>
+              </div>
+              <button class="cms-btn cms-btn-pri" style="font-size:11px;padding:5px 10px;white-space:nowrap;"
+                data-restore-key="${key}" data-restore-url="${entry.url}">Restore</button>
+            </div>`;
+        });
+      });
+      overlay.innerHTML = `
+        <div class="cms-modal-content" style="max-width:580px;max-height:80vh;overflow-y:auto;">
+          <button class="cms-modal-close">&times;</button>
+          <h3 class="cms-modal-title">📸 Image History (${allHistory.reduce((a,[,e])=>a+e.length,0)} entries)</h3>
+          <p style="font-size:12px;color:#8fa894;margin:8px 0 16px;">Click <strong>Restore</strong> to bring back a replaced image. Changes are saved and published immediately.</p>
+          ${rows}
+        </div>`;
+
+      // Bind Restore buttons
+      overlay.querySelectorAll('[data-restore-key]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.restoreKey;
+          const url = btn.dataset.restoreUrl;
+          btn.disabled = true;
+          btn.innerText = 'Restoring...';
+          // Update the live element if visible
+          const el = document.querySelector(`[data-cms-key="${key}"]`) ||
+                      (() => {
+                        // Try resolving from the DOM
+                        const parts = key.split(':');
+                        const tag = parts[parts.length - 1];
+                        return document.querySelector(tag === 'img' ? 'img' : `[style*="background-image"]`);
+                      })();
+          if (el) {
+            if (el.tagName === 'IMG') el.src = url;
+            else el.style.backgroundImage = `url('${url}')`;
+          }
+          // Persist the restored URL as a draft change and publish
+          state.draftChanges[key] = { value: url, type: 'image' };
+          const changes = { ...state.content, ...state.draftChanges };
+          await fetch('/api/content/save-draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ changes })
+          });
+          await fetch('/api/content/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          overlay.remove();
+          location.reload();
+        });
+      });
+    }
+
+    overlay.querySelector('.cms-modal-close').addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
   }
 
   // Mark status text
