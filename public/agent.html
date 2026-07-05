@@ -654,7 +654,7 @@
 
     // Multi-Task Agent Core Router
     async function processAgentCommand(command) {
-      const lower = command.toLowerCase();
+      const lower = command.toLowerCase().replace(/['"]/g, '');
 
       // Fetch live content map first
       try {
@@ -750,16 +750,16 @@
         let targetKey = null;
         let originalLabel = "";
 
-        if (lower.includes('farmer')) {
+        if (lower.includes('farmer') || lower.includes('farmr') || lower.includes('grower')) {
           targetKey = 'home:hero:hero-chips:chip:b';
           originalLabel = "Farmers Count";
-        } else if (lower.includes('soil') || lower.includes('test')) {
+        } else if (lower.includes('soil') || lower.includes('test') || lower.includes('soyl')) {
           targetKey = 'home:hero:hero-chips:chip:1:b';
           originalLabel = "Soil Tests Made";
-        } else if (lower.includes('clinic') || lower.includes('fec')) {
+        } else if (lower.includes('clinic') || lower.includes('fec') || lower.includes('center') || lower.includes('clinik')) {
           targetKey = 'home:hero:hero-chips:chip:2:b';
           originalLabel = "Farm Clinics";
-        } else if (lower.includes('countr') || lower.includes('active')) {
+        } else if (lower.includes('countr') || lower.includes('active') || lower.includes('nation')) {
           targetKey = 'home:hero:hero-chips:chip:3:b';
           originalLabel = "Countries Active";
         }
@@ -788,30 +788,38 @@
         }
       }
 
-      // Text/Heading edits (e.g. Change title to '...')
-      const textMatch = command.match(/change\s+(?:the\s+)?(?:text|heading|title|paragraph)\s+(?:to|with)\s+["']?([^"']+)["']?/i);
-      if (textMatch) {
-        const newTextVal = textMatch[1];
-        let targetKey = null;
-        let keyLabel = "";
+      // Fuzzy search-and-replace text parser: e.g. change "old text" to "new text"
+      // or replace "old text" with "new text"
+      const replaceMatch = command.match(/(?:change|replace)\s+["']?([^"']+)["']?\s+(?:to|with)\s+["']?([^"']+)["']?/i);
+      if (replaceMatch) {
+        const fromText = replaceMatch[1].trim().toLowerCase();
+        const toText = replaceMatch[2].trim();
 
-        if (lower.includes('lead') || lower.includes('paragraph') || lower.includes('mazaohub is')) {
-          targetKey = 'home:hero:lead:p';
-          keyLabel = "Lead Paragraph";
-        } else if (lower.includes('title') || lower.includes('heading') || lower.includes('smallholder')) {
-          targetKey = 'home:hero:reveal:h1';
-          keyLabel = "Hero Heading";
+        // Search state.contentMap for the closest matching text value
+        let bestKey = null;
+        let bestScore = 0;
+
+        for (const [key, item] of Object.entries(state.contentMap)) {
+          if (item.type !== 'text') continue;
+          const val = item.value.toLowerCase();
+          if (val.includes(fromText)) {
+            const score = fromText.length / val.length;
+            if (score > bestScore) {
+              bestScore = score;
+              bestKey = key;
+            }
+          }
         }
 
-        if (targetKey) {
+        if (bestKey) {
           if (!state.authenticated) {
-            return `🔑 <strong>Authorization Required</strong>: To save your heading/text changes, please authenticate the agent first in the sidebar credentials block.`;
+            return `🔑 <strong>Authorization Required</strong>: To save your text change, please authenticate the agent first in the sidebar credentials block.`;
           }
-          const saveSuccess = await saveCMSKey(targetKey, newTextVal, 'text');
+          const saveSuccess = await saveCMSKey(bestKey, toText, 'text');
           if (saveSuccess) {
-            return `✅ <strong>Text Updated</strong>:<br>Successfully updated the <strong>${keyLabel}</strong> to: <em>"${newTextVal}"</em>. The live website preview has updated.`;
+            return `✅ <strong>Text Updated</strong>:<br>Found matching text (Key: <code>${bestKey}</code>) and updated it to: <em>"${toText}"</em>.`;
           } else {
-            return "⚠️ Error: The server rejected the text update. Please verify authentication.";
+            return "⚠️ Error: The database rejected the text update. Please check login.";
           }
         }
       }
@@ -859,7 +867,7 @@
         const saveRes = await fetch('/api/content/save-draft', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(draftChanges)
+          body: JSON.stringify({ changes: draftChanges })
         });
         const saveStatus = await saveRes.json();
 
